@@ -1,0 +1,572 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Tertahan Sinyal Masuk</title>
+<style>
+  :root { --bg:#0d1420; --panel:#162133; --garis:#26344b; --led:#ffb627; --merah:#e23b3b; --jalur:#e23b3b; --teks:#e8edf5; --redup:#8a97ab; --hijau:#3ecf6e; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--teks); font:16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; display:flex; justify-content:center; }
+  :root { color-scheme: dark; }
+  #app { width:100%; max-width:440px; padding-block:14px; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); }
+  @media (prefers-reduced-motion: reduce) { * { animation:none !important; transition:none !important; } }
+  .led { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; color:var(--led); letter-spacing:.04em; }
+  .kecil { font-size:12px; }
+  .besar { font-size:30px; font-weight:700; margin:.3em 0; }
+  .redup { color:var(--redup); font-size:14px; }
+  h1 { font-size:30px; line-height:1.15; margin:.2em 0 .5em; }
+  h1 span { color:var(--jalur); }
+  .pilih-level b { display:block; font-size:17px; }
+  .pilih-level span { color:var(--redup); font-size:14px; }
+
+  #hud { background:var(--panel); border:1px solid var(--garis); border-top:4px solid var(--jalur); border-radius:10px; padding:10px 12px; margin-bottom:14px; }
+  .baris { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  #jam { font-size:26px; font-weight:700; }
+  #jam.telat { color:var(--merah); }
+  #lokasi { font-size:13px; color:var(--redup); text-align:right; }
+  .stat { display:grid; grid-template-columns:92px 1fr 30px; align-items:center; font-size:13px; margin-top:6px; gap:6px; }
+  .bar { height:9px; background:#0a101a; border-radius:5px; overflow:hidden; }
+  .bar i { display:block; height:100%; background:var(--hijau); transition:width .4s, background .4s; }
+  .bar i.tipis { background:var(--merah); }
+  #rute { display:flex; gap:4px; list-style:none; padding:0; margin:8px 0 0; font:11px ui-monospace, Consolas, monospace; color:var(--redup); }
+  #rute li { padding:2px 5px; border-radius:4px; background:#0a101a; }
+  #rute li.lewat { color:#55627a; text-decoration:line-through; }
+  #rute li.sini { background:var(--jalur); color:#fff; }
+  #kopi { margin-top:8px; padding:4px 10px; font-size:13px; width:auto; }
+
+  .teks { font-size:17px; margin:0 0 14px; }
+  .efek { font-family: ui-monospace, Consolas, monospace; color:var(--led); margin:0 0 16px; }
+  button { font:inherit; color:var(--teks); background:var(--panel); border:1px solid var(--garis); border-radius:10px; padding:12px 14px; width:100%; text-align:left; cursor:pointer; margin-bottom:8px; }
+  button:hover:not(:disabled) { border-color:var(--led); }
+  button:focus-visible { outline:2px solid var(--led); outline-offset:2px; }
+  button:disabled { opacity:.4; cursor:default; }
+  button.utama { background:var(--jalur); border-color:var(--jalur); text-align:center; font-weight:700; }
+
+  .notif { background:#eef1f5; color:#111; border-radius:12px; padding:8px 12px; margin-bottom:14px; font-size:14px; box-shadow:0 4px 14px #0008; animation:turun .35s ease-out; }
+  .notif b { display:block; font-size:12px; color:#555; }
+  @keyframes turun { from { transform:translateY(-12px); opacity:0; } }
+
+  .papan { background:#05080d; border:1px solid var(--garis); border-radius:10px; padding:18px; min-height:120px; margin-bottom:12px; display:flex; flex-direction:column; justify-content:center; text-align:center; font:700 20px ui-monospace, Consolas, monospace; color:var(--led); transition:filter .3s; }
+  .papan .besar { font-size:28px; }
+  .papan.rem { background:var(--merah); color:#fff; animation:goyang .3s; }
+  .papan.pelan { color:var(--redup); }
+  .papan.ngantuk { filter:blur(3px); }
+  @keyframes goyang { 25% { transform:translateX(-6px); } 75% { transform:translateX(6px); } }
+  button.jumbo { font-size:22px; padding:20px; }
+  button { touch-action:manipulation; }
+  .bar.dorong { height:22px; margin:4px 0 2px; }
+  canvas { width:100%; border-radius:10px; touch-action:none; display:block; margin-bottom:8px; }
+
+  .hasil { background:var(--panel); border:1px solid var(--garis); border-top:4px solid var(--jalur); border-radius:12px; padding:16px; margin-bottom:14px; text-align:center; }
+  .cap { display:inline-block; border:4px solid; border-radius:8px; padding:4px 14px; font:900 24px ui-monospace, Consolas, monospace; transform:rotate(-6deg); margin:10px 0; }
+  .cap.tepat { color:var(--hijau); }
+  .cap.telat { color:var(--merah); }
+  .julukan { font-size:20px; font-weight:700; color:var(--led); margin:12px 0; }
+  textarea { width:100%; height:110px; background:#0a101a; color:var(--teks); border:1px solid var(--garis); border-radius:8px; padding:8px; font:13px ui-monospace, Consolas, monospace; }
+</style>
+<div id="app">
+  <header id="hud" hidden>
+    <div class="baris"><div id="jam" class="led"></div><div id="lokasi"></div></div>
+    <div class="stat"><span>⚡ Stamina</span><div class="bar"><i id="barStamina"></i></div><span id="nStamina"></span></div>
+    <div class="stat"><span>😤 Kesabaran</span><div class="bar"><i id="barSabar"></i></div><span id="nSabar"></span></div>
+    <div class="baris"><ol id="rute"></ol><button id="kopi" title="Kopi sachet: +25 stamina, sekali pakai">☕ Kopi</button></div>
+  </header>
+  <main id="layar"></main>
+</div>
+
+<script>const LEVEL = [];</script>
+<script src="events.js"></script>
+<script src="events-hijau.js"></script>
+<script>
+const DEADLINE = 8 * 60;
+const $ = s => document.querySelector(s);
+const rand = n => Math.floor(Math.random() * n);
+const clamp = v => Math.max(0, Math.min(100, v));
+const acak = a => a.map(x => [Math.random(), x]).sort((p, q) => p[0] - q[0]).map(x => x[1]);
+const fmtJam = m => `${String(Math.floor(m / 60)).padStart(2, "0")}.${String(m % 60).padStart(2, "0")}`;
+const el = (tag, cls, teks) => { const e = document.createElement(tag); if (cls) e.className = cls; if (teks != null) e.textContent = teks; return e; };
+const tombol = (label, fn, cls) => { const b = el("button", cls, label); b.onclick = () => fn(b); return b; };
+const layar = (...isi) => { $("#layar").replaceChildren(...isi); window.scrollTo(0, 0); };
+
+let S, L;   // S = state perjalanan, L = level yang lagi dimainin
+
+function hud() {
+  $("#jam").textContent = fmtJam(S.jam);
+  $("#jam").classList.toggle("telat", S.jam > DEADLINE);
+  for (const [k, id] of [["stamina", "Stamina"], ["sabar", "Sabar"]]) {
+    $("#bar" + id).style.width = S[k] + "%";
+    $("#bar" + id).classList.toggle("tipis", S[k] <= 30);
+    $("#n" + id).textContent = S[k];
+  }
+  const seg = L.segmen[Math.min(S.seg, L.segmen.length - 1)];
+  $("#lokasi").textContent = seg.nama + (S.rangkaian ? " · " + S.rangkaian.pendek : "") + (S.flag.has("hujan") ? " · 🌧️" : "");
+  $("#rute").replaceChildren(...L.segmen.map((s, i) => el("li", i < S.seg ? "lewat" : i === S.seg ? "sini" : "", s.pendek)));
+  $("#kopi").disabled = !S.kopi || S.tamat;
+}
+
+$("#kopi").onclick = () => {
+  S.kopi = false;
+  S.stamina = clamp(S.stamina + 25);
+  hud();
+};
+
+function judulGame() {
+  const h = el("h1");
+  h.innerHTML = "Tertahan<br><span>Sinyal Masuk</span>";
+  return h;
+}
+
+function intro() {
+  $("#hud").hidden = true;
+  document.documentElement.style.setProperty("--jalur", "#e23b3b");
+  layar(
+    el("p", "led kecil", "KRL COMMUTER LINE JABODETABEK"),
+    judulGame(),
+    el("p", null, "Kamu Dimas, Management Trainee. Kantor di dekat Stasiun Tanah Abang, absen paling lambat 08.00. Udah telat 2 kali. Sekali lagi, kontrak gak diperpanjang."),
+    el("p", null, "Tiap minggu kamu numpang di rumah saudara yang beda. Minggu ini di mana?"),
+    ...LEVEL.map(lv => {
+      const b = tombol("", () => bukaLevel(lv), "pilih-level");
+      b.style.borderLeft = `6px solid ${lv.warna}`;
+      b.append(el("b", null, lv.judul), el("span", null, lv.ringkas));
+      return b;
+    }),
+  );
+}
+
+function bukaLevel(lv) {
+  L = lv;
+  $("#hud").hidden = true;
+  document.documentElement.style.setProperty("--jalur", L.warna);
+  layar(
+    el("p", "led kecil", "KRL COMMUTER LINE · " + L.nama.toUpperCase()),
+    judulGame(),
+    ...L.intro.map(t => el("p", null, t)),
+    el("p", "redup", L.bekal),
+    tombol("Berangkat, " + fmtJam(L.start), mulai, "utama"),
+    tombol("← Ganti level", intro),
+  );
+}
+
+function mulai() {
+  S = { jam: L.start, stamina: 100, sabar: 100, tags: {}, flag: new Set(), rangkaian: null, kopi: true, seg: 0, antrian: [], tamat: false, mentorSeg: 1 + rand(3) };
+  $("#hud").hidden = false;
+  hud();
+  lotre();
+}
+
+function lotre() {
+  const judul = el("p", "teks", L.lotreJudul);
+  const papan = el("p", "led besar", "...");
+  layar(judul, papan);
+  let i = 0;
+  const putar = setInterval(() => (papan.textContent = L.rangkaian[i++ % L.rangkaian.length].nama), 110);
+  setTimeout(() => {
+    clearInterval(putar);
+    let r = Math.random();
+    S.rangkaian = L.rangkaian.find(k => (r -= k.peluang) < 0) ?? L.rangkaian[0];
+    if (S.rangkaian.flag) S.flag.add(S.rangkaian.flag);
+    const info = [];
+    for (const k of L.kondisi) {                     // hujan, gangguan, dll. diundi terpisah
+      const kena = Math.random() < k.peluang;
+      if (kena) S.flag.add(k.flag);
+      const teks = kena ? k.ya : k.tidak;
+      if (teks) info.push(el("p", null, teks));
+    }
+    papan.textContent = S.rangkaian.nama;
+    hud();
+    layar(judul, papan, el("p", null, S.rangkaian.desc), ...info, tombol("Naik", lanjutSegmen, "utama"));
+  }, 1600);
+}
+
+function lanjutSegmen() {
+  if (S.seg >= L.segmen.length) return selesai("sampai");
+  const ev = L.segmen[S.seg].event;
+  const undian = new Set(acak(ev.filter(e => !e.wajib && !e.syarat)).slice(0, L.segmen[S.seg].ambil));
+  // urutan tampil = urutan di events.js; syarat dicek pas mau tampil (flag bisa nyala di segmen yang sama)
+  S.antrian = ev.filter(e => e.wajib || undian.has(e) || e.syarat);
+  if (S.seg === S.mentorSeg) {
+    const tips = L.mentor.filter(d => (d.maksSeg ?? 99) >= S.seg);
+    S.antrian.unshift(tips[rand(tips.length)]);
+  }
+  hud();
+  berikut();
+}
+
+function berikut() {
+  let e;
+  do e = S.antrian.shift();
+  while (e && e.syarat && !(S.flag.has(e.syarat) && Math.random() < (e.peluang ?? 1)));
+  if (!e) {
+    S.jam += L.segmen[S.seg].waktu;
+    S.stamina = clamp(S.stamina + (L.segmen[S.seg].stamina || 0));   // berdiri lama di segmen padat
+    if (S.stamina <= 0) return selesai("pingsan");
+    S.seg++;
+    return lanjutSegmen();
+  }
+  e.minigame ? MINIGAME[e.minigame](e) : tampilEvent(e);
+}
+
+function tampilEvent(e) {
+  const isi = [];
+  if (e.notif) {
+    const n = el("div", "notif");
+    n.append(el("b", null, e.notif.dari), el("div", null, e.notif.teks));
+    isi.push(n);
+  }
+  isi.push(el("p", "teks", e.teks));
+  for (const p of e.pilihan) isi.push(tombol(p.label, () => pilih(p)));
+  layar(...isi);
+}
+
+function pilih(p) {
+  if (p.set) S.flag.add(p.set);
+  const r = p.gagal && Math.random() < p.gagal.peluang ? p.gagal : p;
+  hasil(r.hasil, r.efek, p.tag);
+}
+
+function ringkas(efek) {
+  const t = [];
+  const tanda = v => (v > 0 ? "+" : "−") + Math.abs(v);
+  if (efek.jam) t.push(`🕐 ${tanda(efek.jam)} mnt`);
+  if (efek.stamina) t.push(`⚡ ${tanda(efek.stamina)}`);
+  if (efek.sabar) t.push(`😤 ${tanda(efek.sabar)}`);
+  return t.join("   ") || "Gak ada efek. Hidup berjalan.";
+}
+
+function hasil(teks, efek = {}, tag) {
+  if (tag) S.tags[tag] = (S.tags[tag] || 0) + 1;
+  S.jam += efek.jam || 0;
+  S.stamina = clamp(S.stamina + (efek.stamina || 0));
+  S.sabar = clamp(S.sabar + (efek.sabar || 0));
+  hud();
+  const kalah = S.stamina <= 0 ? "pingsan" : S.sabar <= 0 ? "ojol" : null;
+  layar(el("p", "teks", teks), el("p", "efek", ringkas(efek)),
+    tombol("Lanjut", () => (kalah ? selesai(kalah) : berikut()), "utama"));
+}
+
+// ---------- Mini-game: rebutan pintu Manggarai ----------
+function mainPintu(e) {
+  const W = 360, H = 440, PINTU = [45, 135, 225, 315], ATAS = 80, JARAK = 20, DURASI = 12000, CEPAT = 0.16;
+  const cv = el("canvas"); cv.width = W; cv.height = H;
+  const c = cv.getContext("2d");
+  const q = PINTU.map(() => Array(4 + rand(8) + (S.flag.has("sf8") ? 3 : 0)).fill(0));        // 0 = penumpang lain, 1 = kamu
+  const tempo = PINTU.map(() => 650 + Math.random() * 450);      // ms per penumpang masuk; tiap pintu beda kecepatan
+  const tipsDarto = S.flag.has("tipsPintu");
+  if (tipsDarto) tempo[3] = 420;                                 // pintu paling kanan, kata Pak Darto
+  const hitung = tempo.map(x => x * Math.random());
+  const p = { x: W / 2, y: H - 30 };
+  let target = null, di = -1, t = 0, tiba = 400, last = 0, beres = false;
+  const keys = new Set();
+
+  function keluarAntrean() {
+    if (di < 0) return;
+    const k = q[di].indexOf(1);
+    p.x = PINTU[di] + 26; p.y = ATAS + k * JARAK;
+    q[di].splice(k, 1); di = -1;
+  }
+  const kd = ev => {
+    if (!ev.key.startsWith("Arrow")) return;
+    ev.preventDefault(); keys.add(ev.key);
+    if (ev.key === "ArrowLeft" || ev.key === "ArrowRight") keluarAntrean();
+  };
+  const ku = ev => keys.delete(ev.key);
+  cv.onpointerdown = ev => {
+    if (!last) return;
+    const r = cv.getBoundingClientRect();
+    target = { x: (ev.clientX - r.left) * W / r.width, y: (ev.clientY - r.top) * H / r.height };
+    if (di >= 0 && Math.abs(target.x - PINTU[di]) > 40) keluarAntrean();
+  };
+
+  function akhir(menang) {
+    beres = true;
+    removeEventListener("keydown", kd); removeEventListener("keyup", ku);
+    gambar(menang ? "MASUK!" : "PINTU NUTUP");
+    const r = menang ? e.menang : e.kalah;
+    setTimeout(() => hasil(r.hasil, r.efek, r.tag), 900);
+  }
+
+  function langkah(dt) {
+    t += dt;
+    if ((tiba -= dt) <= 0) { tiba = 350 + Math.random() * 300; q[rand(4)].push(0); }
+    for (let i = 0; i < 4; i++) {
+      if ((hitung[i] -= dt) > 0) continue;
+      hitung[i] = tempo[i] * (0.7 + Math.random() * 0.6);
+      if (q[i].shift() === 1) return akhir(true);
+    }
+    if (t >= DURASI) return akhir(false);
+    if (di >= 0) return;
+    let vx = 0, vy = 0;
+    if (keys.size) {
+      vx = keys.has("ArrowRight") - keys.has("ArrowLeft");
+      vy = keys.has("ArrowDown") - keys.has("ArrowUp");
+      target = null;
+    } else if (target) {
+      const dx = target.x - p.x, dy = target.y - p.y;
+      if (Math.hypot(dx, dy) > 3) { vx = dx; vy = dy; } else target = null;
+    }
+    const n = Math.hypot(vx, vy) || 1;
+    p.x = Math.max(10, Math.min(W - 10, p.x + vx / n * CEPAT * dt));
+    p.y = Math.max(ATAS, Math.min(H - 10, p.y + vy / n * CEPAT * dt));
+    for (let i = 0; i < 4; i++) {
+      if (Math.abs(p.x - PINTU[i]) < 22 && p.y <= ATAS + q[i].length * JARAK + JARAK / 2) {
+        q[i].push(1); di = i; target = null; break;
+      }
+    }
+  }
+
+  function orang(x, y, kamu) {
+    c.beginPath(); c.arc(x, y, 8, 0, 7);
+    c.fillStyle = kamu ? "#e23b3b" : "#8a97ab"; c.fill();
+    if (kamu) {
+      c.lineWidth = 2; c.strokeStyle = "#fff"; c.stroke();
+      c.fillStyle = "#fff"; c.font = "bold 10px system-ui"; c.textAlign = "center";
+      c.fillText("KAMU", x, y - 12);
+    }
+  }
+
+  function gambar(pesan) {
+    c.fillStyle = "#1b2638"; c.fillRect(0, 0, W, H);
+    c.fillStyle = "#c9ced6"; c.fillRect(0, 0, W, 46);
+    c.fillStyle = "#e23b3b"; c.fillRect(0, 36, W, 5);
+    c.fillStyle = "#ffb627"; c.fillRect(0, 56, W, 3);
+    const tutup = Math.max(0, Math.min(1, (t - (DURASI - 1500)) / 1500));
+    PINTU.forEach((x, i) => {
+      const w = 34 * (1 - tutup);
+      c.fillStyle = "#0d1420"; c.fillRect(x - w / 2, 4, w, 32);
+      if (tipsDarto && i === 3) {
+        c.fillStyle = "#ffb627"; c.font = "bold 16px system-ui"; c.textAlign = "center";
+        c.fillText("★", x, 26);
+      }
+      q[i].forEach((who, k) => orang(x, ATAS + k * JARAK, who === 1));
+    });
+    if (di < 0) orang(p.x, p.y, true);
+    const sisa = Math.max(0, (DURASI - t) / 1000);
+    c.textAlign = "right"; c.font = "bold 18px Consolas, monospace";
+    c.fillStyle = sisa < 3 ? "#e23b3b" : "#ffb627";
+    c.fillText(sisa.toFixed(1) + " dtk", W - 10, H - 12);
+    if (pesan) {
+      c.fillStyle = "#000a"; c.fillRect(0, H / 2 - 36, W, 64);
+      c.fillStyle = "#fff"; c.textAlign = "center"; c.font = "900 30px system-ui";
+      c.fillText(pesan, W / 2, H / 2 + 8);
+    }
+  }
+
+  function loop(now) {
+    if (beres) return;
+    langkah(Math.min(50, now - last));
+    last = now;
+    if (!beres) { gambar(); requestAnimationFrame(loop); }
+  }
+
+  const mulaiBtn = tombol("Mulai!", () => {
+    mulaiBtn.remove();
+    addEventListener("keydown", kd); addEventListener("keyup", ku);
+    last = performance.now();
+    requestAnimationFrame(loop);
+  }, "utama");
+  layar(el("p", "teks", e.teks), cv,
+    el("p", "redup", "Tap tujuan atau pakai tombol panah. Masuk ke antrean pintu yang paling cepat jalan. Waktumu 12 detik."
+      + (tipsDarto ? " Pintu ★ = tips Pak Darto." : "")),
+    mulaiBtn);
+  gambar();
+}
+
+// ---------- Mini-game: pegangan pas rem mendadak ----------
+function mainRem(e) {
+  const TOTAL = 5, NYAWA = 2, JENDELA = S.flag.has("tipsRem") ? 900 : 550;
+  const papan = el("div", "papan", "Tekan Mulai. Tiap muncul REM!, langsung pencet PEGANGAN. Kepagian juga dihitung salah.");
+  const skor = el("p", "efek", "");
+  let jalan = false, beres = false, rem = false, ke = 0, kena = 0, salah = 0, timer;
+  const tulis = (teks, cls = "") => { papan.textContent = teks; papan.className = "papan " + cls; };
+  const render = () => (skor.textContent = `✊ ${kena}/${TOTAL}   ❌ ${salah}/${NYAWA}`);
+
+  function akhir(menang) {
+    beres = true; clearTimeout(timer); pegang.disabled = true;
+    tulis(menang ? "AMAN!" : "OLENG!", menang ? "" : "rem");
+    const r = menang ? e.menang : e.kalah;
+    setTimeout(() => hasil(r.hasil, r.efek, r.tag), 900);
+  }
+  function berikutnya() {
+    if (ke >= TOTAL) return akhir(true);
+    timer = setTimeout(() => {
+      if (Math.random() < 0.3) {                       // jebakan: cuma melambat, jangan dipencet
+        tulis("Kereta melambat...", "pelan");
+        timer = setTimeout(() => { tulis("Kereta melaju..."); berikutnya(); }, 900);
+        return;
+      }
+      ke++; rem = true; tulis("⚠️ REM!", "rem");
+      timer = setTimeout(() => { rem = false; salahLagi("Telat pegangan! Kamu oleng."); }, JENDELA);
+    }, 700 + Math.random() * 1500);
+  }
+  function salahLagi(teks) {
+    clearTimeout(timer); salah++; render();
+    if (salah >= NYAWA) return akhir(false);
+    tulis(teks); berikutnya();
+  }
+  const pegang = tombol("✊ PEGANGAN!", () => {
+    if (!jalan || beres) return;
+    if (!rem) return salahLagi("Kepagian! Kamu narik tali kosong.");
+    rem = false; kena++; render(); clearTimeout(timer);
+    tulis("Aman. Kereta melaju..."); berikutnya();
+  }, "utama jumbo");
+  const mulaiBtn = tombol("Mulai!", () => {
+    mulaiBtn.remove(); jalan = true; render();
+    tulis("Kereta melaju..."); pegang.focus(); berikutnya();
+  }, "utama");
+  layar(el("p", "teks", e.teks), papan, skor, pegang, mulaiBtn,
+    el("p", "redup", S.flag.has("tipsRem") ? "Kuda-kuda ala Pak Darto: waktu reaksimu lebih longgar." : "Bisa juga pakai Spasi/Enter."));
+}
+
+// ---------- Mini-game: turun di Manggarai ----------
+function mainTurun(e) {
+  // null = kereta berhenti di luar peron (antre sinyal masuk Manggarai), pintu gak kebuka
+  const RUTE = ["Tebet", ...Array(1 + rand(3)).fill(null), "Manggarai", "Cikini", "Gondangdia"];
+  const TUJUAN = RUTE.indexOf("Manggarai");
+  const ngantuk = S.flag.has("ngantuk") || S.flag.has("bahu");
+  const tempo = 1050 - (ngantuk ? 300 : 0) + (S.flag.has("siaga") ? 300 : 0);
+  const kresek = ngantuk ? 0.55 : 0.35;
+  const papan = el("div", "papan", "Tekan Mulai. Papan bakal nampilin tempat kereta lagi berhenti.");
+  let i = -1, timer, beres = false;
+  const samar = s => [...s].map((ch, k) => (k && ch !== " " && Math.random() < kresek ? "·" : ch)).join("");
+
+  function akhir(r, stasiun) {
+    beres = true; clearTimeout(timer); turun.disabled = true;
+    setTimeout(() => hasil(r.hasil.replace("{stasiun}", stasiun), r.efek, r.tag), 700);
+  }
+  function maju() {
+    i++;
+    if (i > TUJUAN) { papan.className = "papan rem"; papan.textContent = "Pintu nutup..."; return akhir(e.kalah, RUTE[i]); }
+    papan.className = "papan" + (ngantuk && Math.random() < 0.5 ? " ngantuk" : "");
+    papan.replaceChildren(...(RUTE[i] === null
+      ? [el("div", "kecil", "Kereta berhenti di luar peron"), el("div", "besar", "⏸ ··· sinyal ···")]
+      : [el("div", "kecil", "Kereta berhenti di stasiun"), el("div", "besar", samar(RUTE[i]))]));
+    timer = setTimeout(maju, tempo * (0.75 + Math.random() * 0.5));   // gak bisa ditebak pakai ritme
+  }
+  const turun = tombol("🚪 TURUN!", () => {
+    if (beres || i < 0) return;
+    if (RUTE[i] === null) { papan.firstChild.textContent = "Pintunya belum kebuka!"; return; }
+    if (i === TUJUAN) return akhir(e.menang, RUTE[i]);
+    akhir(e.kecepetan, RUTE[i]);
+  }, "utama jumbo");
+  const mulaiBtn = tombol("Mulai!", () => {
+    mulaiBtn.remove(); turun.focus(); maju();
+  }, "utama");
+  const catatan = [ngantuk && "Kamu masih ngantuk: papan lebih burem, kereta kerasa lebih cepat.", S.flag.has("siaga") && "Kamu udah siaga di dekat pintu: waktumu lebih longgar."].filter(Boolean).join(" ");
+  layar(el("p", "teks", e.teks), papan, turun, mulaiBtn, el("p", "redup", catatan || "Bisa juga pakai Spasi/Enter."));
+}
+
+// ---------- Mini-game: jangan kedorong keluar di Cawang ----------
+function mainDorong(e) {
+  const DURASI = 6000, EKSTRA = S.flag.has("sf8") ? 6 : 0;   // 8 gerbong = arus lebih kuat
+  const DORONG = S.flag.has("tipsDorong") ? 6.5 : 5;          // tips mentor: nempel tiang pinggir pintu
+  const papan = el("div", "papan", "Tekan Mulai, lalu pencet TAHAN berkali-kali secepat mungkin. Kalau bar habis, kamu kedorong keluar.");
+  const label = el("div", "baris kecil redup");
+  label.append(el("span", null, "← PINTU (keluar)"), el("span", null, "DALAM GERBONG →"));
+  const bar = el("div", "bar dorong"), isi = el("i");
+  bar.append(isi);
+  const sisa = el("p", "efek", "");
+  let p = 55, t = 0, last = 0, gaya = 30, ganti = 0, jalan = false, beres = false;
+  const gambar = () => {
+    isi.style.width = p + "%";
+    isi.classList.toggle("tipis", p < 25);
+    sisa.textContent = `Tahan ${Math.max(0, (DURASI - t) / 1000).toFixed(1)} dtk lagi`;
+  };
+
+  function akhir(menang) {
+    beres = true; tahan.disabled = true;
+    papan.className = "papan" + (menang ? "" : " rem");
+    papan.textContent = menang ? "PINTU NUTUP. KAMU MASIH DI DALAM!" : "KEDORONG KELUAR!";
+    const r = menang ? e.menang : e.kalah;
+    setTimeout(() => hasil(r.hasil, r.efek, r.tag), 900);
+  }
+  function loop(now) {
+    if (beres) return;
+    const dt = Math.min(50, now - last);
+    last = now; t += dt;
+    if ((ganti -= dt) <= 0) {                                 // arus berubah tiap 0,6 detik
+      ganti = 600;
+      gaya = 15 + Math.random() * 35 + EKSTRA;
+      const deras = gaya > 38;
+      papan.className = "papan" + (deras ? " rem" : "");
+      papan.textContent = deras ? "\"TURUN, TURUN, TURUN!\"" : "Arus orang turun...";
+    }
+    p -= gaya * dt / 1000;
+    gambar();
+    if (p <= 0) return akhir(false);
+    if (t >= DURASI) return akhir(true);
+    requestAnimationFrame(loop);
+  }
+  const tahan = tombol("💪 TAHAN!", () => {
+    if (!jalan || beres) return;
+    p = Math.min(100, p + DORONG);
+    gambar();
+  }, "utama jumbo");
+  const mulaiBtn = tombol("Mulai!", () => {
+    mulaiBtn.remove(); jalan = true; tahan.focus();
+    last = performance.now(); requestAnimationFrame(loop);
+  }, "utama");
+  gambar();
+  layar(el("p", "teks", e.teks), papan, label, bar, sisa, tahan, mulaiBtn,
+    el("p", "redup", (EKSTRA ? "Rangkaian 8 gerbong: arusnya lebih kuat. " : "")
+      + (S.flag.has("tipsDorong") ? "Kamu nempel tiang pinggir pintu: tiap pencetan lebih kuat. " : "")
+      + "Bisa juga pencet Spasi berkali-kali."));
+}
+
+const MINIGAME = { pintu: mainPintu, rem: mainRem, turun: mainTurun, dorong: mainDorong };
+
+// ---------- Akhir & kartu hasil ----------
+function selesai(cara) {
+  S.tamat = true;
+  const tempat = L.segmen[Math.min(S.seg, L.segmen.length - 1)].nama;
+  if (cara === "pingsan") S.jam = Math.max(S.jam + 45, DEADLINE + 5);
+  if (cara === "ojol") S.jam = Math.max(S.jam + 30, DEADLINE + 5);
+  hud();
+  const telat = Math.max(0, S.jam - DEADLINE);
+  const kondisi = S.rangkaian.pendek + (S.rangkaian.flag === "inka" ? " 😭" : "") + (S.flag.has("hujan") ? " · hujan 🌧️" : "");
+  const top = Object.entries(S.tags).sort((a, b) => b[1] - a[1])[0];
+  const ekor = {
+    pingsan: `yang Pingsan di ${tempat}`,
+    ojol: "yang Kabur Naik Ojol",
+    sampai: telat ? `yang Telat ${telat} Menit` : "yang Tepat Waktu",
+  }[cara];
+  const julukan = `${top ? JULUKAN[top[0]] : "Commuter Biasa Aja"} ${ekor}`;
+  const cerita = {
+    pingsan: `Stamina habis di ${tempat}. Kamu siuman di ruang kesehatan stasiun, lalu lanjut naik ojol.`,
+    ojol: `Kesabaran habis di ${tempat}. Kamu turun, pesan ojol, dan terjebak macet Jakarta.`,
+    sampai: telat ? "Kamu sampai kantor, tapi jam udah lewat." : "Kamu tap absen dengan napas ngos-ngosan. Berhasil.",
+  }[cara];
+  const bu = telat
+    ? "Bu Sri: \"Ini telat ketiga, Dimas.\" Kontrak gak diperpanjang... tapi humas KRL nawarin kamu jadi Duta KRL."
+    : "Bu Sri: \"Tepat waktu. Probation aman. Untuk sekarang.\"";
+
+  const kartu = el("div", "hasil");
+  kartu.append(
+    el("p", "led kecil", "TERTAHAN SINYAL MASUK · " + L.nama.toUpperCase()),
+    el("div", "cap " + (telat ? "telat" : "tepat"), telat ? "TELAT" : "TEPAT WAKTU"),
+    el("p", "led besar", "Tiba " + fmtJam(S.jam)),
+    el("p", null, cerita),
+    el("p", "julukan", `“${julukan}”`),
+    el("p", "redup", `Rangkaian: ${kondisi} · ⚡ ${S.stamina} · 😤 ${S.sabar}`),
+    el("p", "redup", bu),
+    el("p", "redup", "🏆 Rara: tiba 07.12 (jalan kaki dari Kebon Kacang)"),
+  );
+
+  const teksShare = `🚆 Tertahan Sinyal Masuk · ${L.nama}\nTiba ${fmtJam(S.jam)} · ${telat ? `TELAT ${telat} menit` : "TEPAT WAKTU"}\n"${julukan}"\nRangkaian: ${kondisi}`;
+  // Urutan: share sheet HP -> salin ke clipboard -> tampilkan teks buat disalin manual
+  const bagikan = async b => {
+    try {
+      await navigator.share({ title: "Tertahan Sinyal Masuk", text: teksShare, url: location.href });
+      return;
+    } catch (err) { if (err.name === "AbortError") return; }
+    try {
+      await navigator.clipboard.writeText(teksShare + "\n" + location.href);
+      b.textContent = "Tersalin! Tempel di medsos";
+    } catch {
+      const ta = el("textarea"); ta.value = teksShare; ta.readOnly = true;
+      b.replaceWith(ta); ta.select();
+    }
+  };
+  layar(kartu, tombol("📤 Bagikan hasil", bagikan, "utama"), tombol("🔁 Main lagi", () => bukaLevel(L)), tombol("🗺️ Ganti level", intro));
+}
+
+intro();
+</script>
